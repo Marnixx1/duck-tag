@@ -1,0 +1,79 @@
+import React, { useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
+import { motion } from "framer-motion";
+
+const socket = io("https://your-server-url.com"); // Replace with your actual secure server URL
+
+const colors = ["yellow", "red", "blue", "green", "purple"];
+
+export default function DuckTagGame() {
+  const [players, setPlayers] = useState({});
+  const [playerId, setPlayerId] = useState(null);
+
+  const handleMovement = (e) => {
+    let dir = null;
+    switch (e.key) {
+      case "w":
+      case "ArrowUp":
+        dir = "up";
+        break;
+      case "s":
+      case "ArrowDown":
+        dir = "down";
+        break;
+      case "a":
+      case "ArrowLeft":
+        dir = "left";
+        break;
+      case "d":
+      case "ArrowRight":
+        dir = "right";
+        break;
+    }
+    if (dir) {
+      socket.emit("move", dir);
+    }
+  };
+
+  useEffect(() => {
+    socket.on("connect", () => {
+      setPlayerId(socket.id);
+    });
+
+    socket.on("state", (serverPlayers) => {
+      setPlayers(serverPlayers);
+    });
+
+    window.addEventListener("keydown", handleMovement);
+    return () => {
+      window.removeEventListener("keydown", handleMovement);
+      socket.disconnect();
+    };
+  }, []);
+
+  return (
+    <div className="relative w-full h-screen bg-green-200 overflow-hidden">
+      {Object.entries(players).map(([id, player]) => (
+        <motion.div
+          key={id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className={`absolute w-10 h-10 rounded-full border-2 border-black`}
+          style={{
+            left: player.x,
+            top: player.y,
+            backgroundColor: colors[player.colorIndex],
+            zIndex: player.layer,
+          }}
+        >
+          {id === playerId && <div className="text-xs text-center">YOU</div>}
+          {player.isTagger && (
+            <div className="absolute -top-4 left-1 text-red-600 font-bold text-sm">
+              TAGGER
+            </div>
+          )}
+        </motion.div>
+      ))}
+    </div>
+  );
+}
